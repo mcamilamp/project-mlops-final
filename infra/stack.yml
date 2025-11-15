@@ -1,0 +1,77 @@
+version: "3.8"
+
+services:
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.9.2
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "5000:5000"
+    volumes:
+      - mlflow-data:/mlflow
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+    networks:
+      - mlops-prod
+
+  llm-service:
+    image: mlops-project/llm-service:latest
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: "1"
+          memory: 2G
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+    networks:
+      - mlops-prod
+
+  ml-service:
+    image: mlops-project/ml-service:latest
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    networks:
+      - mlops-prod
+
+  cnn-service:
+    image: mlops-project/cnn-service:latest
+    deploy:
+      replicas: 2
+      restart_policy:
+        condition: on-failure
+      resources:
+        limits:
+          cpus: "2"
+          memory: 4G
+    networks:
+      - mlops-prod
+
+  gradio-app:
+    image: mlops-project/gradio-app:latest
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+    ports:
+      - "7860:7860"
+    networks:
+      - mlops-prod
+
+networks:
+  mlops-prod:
+    driver: overlay
+
+volumes:
+  mlflow-data:

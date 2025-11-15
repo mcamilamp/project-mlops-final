@@ -1,0 +1,93 @@
+version: "3.8"
+
+services:
+  mlflow:
+    build:
+      context: ../mlflow
+      dockerfile: Dockerfile
+    container_name: mlflow
+    ports:
+      - "5000:5000"
+    volumes:
+      - ../mlflow:/mlflow
+    command: >
+      mlflow server
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+    networks:
+      - mlops-net
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - mlops-net
+
+  llm-service:
+    build:
+      context: ../llm-service
+      dockerfile: Dockerfile
+    container_name: llm-service
+    ports:
+      - "8001:8000"
+    environment:
+      - OLLAMA_URL=http://ollama:11434
+      - LLM_MODEL=llama2
+    depends_on:
+      - ollama
+    networks:
+      - mlops-net
+
+  ml-service:
+    build:
+      context: ../ml-service
+      dockerfile: Dockerfile
+    container_name: ml-service
+    ports:
+      - "8002:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - mlflow
+    networks:
+      - mlops-net
+
+  cnn-service:
+    build:
+      context: ../cnn-service
+      dockerfile: Dockerfile
+    container_name: cnn-service
+    ports:
+      - "8003:8000"
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+    depends_on:
+      - mlflow
+    networks:
+      - mlops-net
+
+  gradio-app:
+    build:
+      context: ../gradio-app
+      dockerfile: Dockerfile
+    container_name: gradio-app
+    ports:
+      - "7860:7860"
+    depends_on:
+      - llm-service
+      - ml-service
+      - cnn-service
+    networks:
+      - mlops-net
+
+networks:
+  mlops-net:
+    driver: bridge
+
+volumes:
+  ollama-data:
