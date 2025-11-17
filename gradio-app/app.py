@@ -15,7 +15,7 @@ def chat_with_llm(message, history):
         response = requests.post(
             LLM_URL,
             json={"prompt": message},
-            timeout=30
+            timeout=120
         )
         return response.json()["response"]
     except Exception as e:

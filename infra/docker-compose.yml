@@ -37,7 +37,7 @@ services:
       - "8001:8000"
     environment:
       - OLLAMA_URL=http://ollama:11434
-      - LLM_MODEL=llama2
+      - LLM_MODEL=orca-mini
     depends_on:
       - ollama
     networks:
