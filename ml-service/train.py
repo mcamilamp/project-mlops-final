@@ -3,7 +3,7 @@ import mlflow.sklearn
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
-from sklearn.datasets import load_iris
+from sklearn.datasets import load_wine
 import os
 
 def train_model():
@@ -11,12 +11,18 @@ def train_model():
     Entrena un modelo de clasificación con scikit-learn.
     Registra métricas y modelo en MLflow.
     """
-    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000"))
-    mlflow.set_experiment("iris_classification")
+    # Configurar MLflow
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
+    mlflow.set_tracking_uri(tracking_uri)
+    
+    # IMPORTANTE: Configurar para usar artifacts vía HTTP
+    os.environ["MLFLOW_ARTIFACTS_DESTINATION"] = f"{tracking_uri}/api/2.0/mlflow-artifacts/artifacts"
+    
+    mlflow.set_experiment("wine_classification")
     
     with mlflow.start_run():
         # Cargar datos
-        data = load_iris()
+        data = load_wine()
         X_train, X_test, y_train, y_test = train_test_split(
             data.data, data.target, test_size=0.2, random_state=42
         )
@@ -48,8 +54,21 @@ def train_model():
         mlflow.log_metric("precision", precision)
         mlflow.log_metric("recall", recall)
         
-        # Registrar modelo
-        mlflow.sklearn.log_model(model, "model")
+        print(f"\n{'='*50}")
+        print(f"Modelo entrenado exitosamente!")
+        print(f"{'='*50}")
+        print(f"Accuracy:  {accuracy:.4f}")
+        print(f"F1 Score:  {f1:.4f}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall:    {recall:.4f}")
+        print(f"{'='*50}\n")
+        
+        # Registrar modelo directamente
+        mlflow.sklearn.log_model(
+            model, 
+            "model",
+            registered_model_name="wine_classification"
+        )
         
         return model
 

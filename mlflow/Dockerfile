@@ -1,26 +1,32 @@
 FROM python:3.10-slim
 
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
+# Instalar curl y cliente PostgreSQL
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m -u 1000 mlflowuser
+# Instalar MLflow con soporte PostgreSQL
+RUN pip install --no-cache-dir mlflow==2.9.2 psycopg2-binary
 
 WORKDIR /mlflow
 
-RUN pip install --no-cache-dir mlflow
-
-RUN mkdir -p /mlflow/artifacts /mlflow/data && chown -R mlflowuser:mlflowuser /mlflow
-
-COPY --chown=mlflowuser:mlflowuser . .
-
-USER mlflowuser
+# Crear directorio para artifacts
+RUN mkdir -p /mlflow/artifacts
 
 EXPOSE 5000
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:5000')" || exit 1
+# Healthcheck
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
+    CMD curl -f http://localhost:5000/health || exit 1
 
-LABEL maintainer="MLOps Team" version="1.0.0"
+LABEL maintainer="MLOps Team" \
+      version="1.0.0" \
+      description="MLflow Tracking Server"
 
-CMD ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--artifacts-destination", "/mlflow/artifacts", "--backend-store-uri", "sqlite:///mlflow/mlflow.db"]
+# Comando de inicio usando variables de entorno
+CMD mlflow server \
+    --backend-store-uri ${BACKEND_STORE_URI} \
+    --default-artifact-root ${DEFAULT_ARTIFACT_ROOT} \
+    --host 0.0.0.0 \
+    --port 5000

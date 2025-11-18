@@ -1,6 +1,24 @@
 version: "3.8"
 
 services:
+  # Base de datos PostgreSQL para MLflow
+  postgres:
+    image: postgres:15-alpine
+    container_name: mlflow-db
+    environment:
+      POSTGRES_USER: mlflow
+      POSTGRES_PASSWORD: mlflow
+      POSTGRES_DB: mlflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - mlops-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   mlflow:
     build:
       context: ../mlflow
@@ -8,15 +26,29 @@ services:
     container_name: mlflow
     ports:
       - "5000:5000"
+    environment:
+      - BACKEND_STORE_URI=postgresql://mlflow:mlflow@postgres:5432/mlflow
+      - DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
     volumes:
-      - ../mlflow:/mlflow
-    command: >
-      mlflow server
-      --backend-store-uri sqlite:///mlflow/mlflow.db
-      --default-artifact-root /mlflow/artifacts
-      --host 0.0.0.0
+      - mlflow-artifacts:/mlflow/artifacts
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - mlops-net
+    command: >
+      mlflow server
+      --backend-store-uri postgresql://mlflow:mlflow@postgres:5432/mlflow
+      --default-artifact-root /mlflow/artifacts
+      --host 0.0.0.0
+      --port 5000
+      --serve-artifacts
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   ollama:
     image: ollama/ollama:latest
@@ -52,8 +84,11 @@ services:
       - "8002:8000"
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+    volumes:
+      - mlflow-artifacts:/mlflow/artifacts
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
     networks:
       - mlops-net
 
@@ -67,7 +102,8 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     depends_on:
-      - mlflow
+      mlflow:
+        condition: service_healthy
     networks:
       - mlops-net
 
@@ -91,3 +127,5 @@ networks:
 
 volumes:
   ollama-data:
+  postgres-data:
+  mlflow-artifacts:
