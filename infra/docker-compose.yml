@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   mlflow:
     build:
@@ -9,12 +7,12 @@ services:
     ports:
       - "5000:5000"
     volumes:
-      - ../mlflow:/mlflow
+      - mlflow-data:/mlflow
     command: >
-      mlflow server
-      --backend-store-uri sqlite:///mlflow/mlflow.db
-      --default-artifact-root /mlflow/artifacts
+      mlflow ui
+      --port 5000
       --host 0.0.0.0
+      --allowed-hosts *
     networks:
       - mlops-net
 
@@ -27,6 +25,8 @@ services:
       - ollama-data:/root/.ollama
     networks:
       - mlops-net
+    profiles:
+      - local
 
   llm-service:
     build:
@@ -38,8 +38,6 @@ services:
     environment:
       - OLLAMA_URL=http://ollama:11434
       - LLM_MODEL=orca-mini
-    depends_on:
-      - ollama
     networks:
       - mlops-net
 
@@ -91,3 +89,4 @@ networks:
 
 volumes:
   ollama-data:
+  mlflow-data:
