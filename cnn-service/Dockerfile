@@ -1,57 +1,19 @@
-FROM python:3.10-slim AS builder
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1
-
-WORKDIR /build
-
-# Instalar dependencias del sistema necesarias para OpenCV y TensorFlow
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copiar requirements y instalar
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-FROM python:3.10-slim AS runtime
-
-# Instalar solo las librerías necesarias en runtime
-# Para CNN/OpenCV/TensorFlow, podríamos necesitar libgomp1
-# pero lo dejaremos mínimo sin librerías gráficas obsoletas
-
-# Crear usuario no-root
-RUN useradd -m -u 1000 cnnuser
+FROM python:3.10-slim
 
 WORKDIR /app
 
-# Copiar dependencias de Python desde builder
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
+RUN apt-get update && apt-get install -y \
+    gcc g++ curl libglib2.0-0 libsm6 libxext6 libxrender-dev libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copiar código fuente
-COPY --chown=cnnuser:cnnuser . .
+COPY requirements.txt .
 
-# Crear directorios para modelos y datos
-RUN mkdir -p /app/models /app/data && \
-    chown -R cnnuser:cnnuser /app
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Cambiar a usuario no-root
-USER cnnuser
+RUN pip install httpx pytest
 
-# Exponer puerto
+COPY . .
+
 EXPOSE 8000
 
-# Healthcheck
-HEALTHCHECK --interval=30s --timeout=15s --start-period=30s --retries=3 \
-    CMD python -c "import requests; requests.get('http://localhost:8000/health')" || exit 1
-
-# Labels
-LABEL maintainer="MLOps Team" \
-      version="1.0.0" \
-      description="CNN Service - Clasificación de Imágenes"
-
-# Comando de inicio
-CMD ["uvicorn", "predict:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD pytest test.py && uvicorn predict:app --host 0.0.0.0 --port 8000 --workers 1
