@@ -18,8 +18,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 FROM python:3.10-slim AS runtime
 
-# Crear usuario no-root
-RUN useradd -m -u 1000 mluser
+# NO crear usuario - ejecutar como root para acceso al volumen
+# RUN useradd -m -u 1000 mluser  # ← COMENTADO
 
 WORKDIR /app
 
@@ -27,13 +27,14 @@ WORKDIR /app
 COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-COPY --chown=mluser:mluser . .
+# Copiar sin cambiar ownership
+COPY . .
 
 # Crear directorios necesarios
-RUN mkdir -p /app/models /app/data && \
-    chown -R mluser:mluser /app
+RUN mkdir -p /app/models /app/data
 
-USER mluser
+# NO cambiar a usuario mluser
+# USER mluser  # ← COMENTADO
 
 # Exponer puerto
 EXPOSE 8000
@@ -45,7 +46,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 # Labels para metadatos
 LABEL maintainer="MLOps Team" \
       version="1.0.0" \
-      description="ML Service - Clasificación Iris"
+      description="ML Service - Wine Classification"
 
 # Comando de inicio
 CMD ["uvicorn", "predict:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
