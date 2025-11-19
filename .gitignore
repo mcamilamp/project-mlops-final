@@ -28,3 +28,4 @@ data/processed/
 .vscode/
 .idea/
 *.swp
+llm-service/.env

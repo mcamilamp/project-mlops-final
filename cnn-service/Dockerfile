@@ -12,6 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 RUN pip install httpx pytest
 
+RUN pip install python-multipart
+
 COPY . .
 
 EXPOSE 8000

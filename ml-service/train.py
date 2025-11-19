@@ -12,7 +12,7 @@ def train_model():
     Registra métricas y modelo en MLflow.
     """
     # Configurar MLflow
-    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000")
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     mlflow.set_tracking_uri(tracking_uri)
     
     # IMPORTANTE: Configurar para usar artifacts vía HTTP

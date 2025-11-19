@@ -6,9 +6,6 @@ services:
     container_name: mlflow
     ports:
       - "5000:5000"
-    environment:
-      - BACKEND_STORE_URI=postgresql://mlflow:mlflow@postgres:5432/mlflow
-      - DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
     volumes:
       - mlflow-data:/mlflow
     command: >
@@ -18,12 +15,6 @@ services:
       --allowed-hosts *
     networks:
       - mlops-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
 
   ollama:
     image: ollama/ollama:latest
@@ -49,6 +40,8 @@ services:
       - LLM_MODEL=orca-mini
     networks:
       - mlops-net
+    env_file:
+      - ../llm-service/.env
 
   ml-service:
     build:
@@ -60,10 +53,9 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     volumes:
-      - mlflow-artifacts:/mlflow/artifacts
+      - mlflow-ml:/mlflow/
     depends_on:
-      mlflow:
-        condition: service_healthy
+      - mlflow
     networks:
       - mlops-net
 
@@ -77,8 +69,7 @@ services:
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     depends_on:
-      mlflow:
-        condition: service_healthy
+      - mlflow
     networks:
       - mlops-net
 
@@ -103,3 +94,4 @@ networks:
 volumes:
   ollama-data:
   mlflow-data:
+  mlflow-ml:

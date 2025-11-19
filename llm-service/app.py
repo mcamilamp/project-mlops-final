@@ -1,70 +1,144 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
 import os
 import requests
+import logging
 from typing import Optional
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from openai import OpenAI
+
+# ---------------------------------------
+# LOGGING CONFIG
+# ---------------------------------------
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(asctime)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="LLM Service API")
 
+
+# ---------------------------------------
+# MODELS
+# ---------------------------------------
+
 class QueryRequest(BaseModel):
-    # Accept either 'query' or 'prompt' to be compatible with different clients
     query: Optional[str] = None
     prompt: Optional[str] = None
     model: Optional[str] = None
+
 
 class QueryResponse(BaseModel):
     response: str
     model: str
 
-@app.post("/chat", response_model=QueryResponse)
 
-async def chat(request: QueryRequest):
+# ---------------------------------------
+# HELPERS
+# ---------------------------------------
+
+def call_ollama(prompt_text: str, model_name: str) -> Optional[str]:
     """
-    Endpoint para consultar un modelo de lenguaje (LLM).
+    Llama a Ollama localmente. Si falla, devuelve None.
     """
+    ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+
+    logger.info(f"[OLLAMA] Intentando consulta al modelo '{model_name}' en {ollama_url}")
+
+    payload = {
+        "model": model_name,
+        "prompt": prompt_text,
+        "stream": False
+    }
+
     try:
-        ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
+        resp = requests.post(
+            f"{ollama_url}/api/generate",
+            json=payload,
+            timeout=10
+        )
 
-        prompt_text = request.prompt or request.query
+        logger.info(f"[OLLAMA] Código de estado recibido: {resp.status_code}")
 
-        if not prompt_text:
-            raise HTTPException(status_code=422, detail="No prompt or query provided")
+        if resp.status_code == 200:
+            data = resp.json()
+            logger.info("[OLLAMA] Respuesta exitosa recibida.")
+            return data.get("response", "")
 
-        payload = {
-            "model": os.getenv("LLM_MODEL", "mistral"),
-            "prompt": prompt_text,
-            "stream": False
-        }
+        logger.warning(f"[OLLAMA] Error HTTP {resp.status_code}. Activando fallback.")
+        return None
 
-        resp = requests.post(f"{ollama_url}/api/generate",
-                             json=payload,
-                             timeout=120)
-
-        # If Ollama returns an error payload, surface a friendly message
-        try:
-            resp_json = resp.json()
-        except ValueError:
-            resp_json = None
-
-        if resp.status_code != 200:
-            # If the API returned a structured error, include it; otherwise use status
-            if resp_json and isinstance(resp_json, dict):
-                error_msg = resp_json.get("error") or resp_json.get("detail") or str(resp_json)
-            else:
-                error_msg = f"Ollama error: HTTP {resp.status_code}"
-
-            # Provide a helpful fallback instead of raising to the client UI
-            # so the chat shows a readable message.
-            return QueryResponse(response=f"[Ollama] {error_msg}", model=payload["model"])
-
-        # Success path
-        return QueryResponse(response=resp.json().get("response", ""), model=payload["model"])
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"[OLLAMA] Falló la conexión o procesamiento: {e}")
+        return None
+
+
+def call_openrouter(prompt_text: str, model_name: str) -> str:
+    """
+    Llama a OpenRouter usando la librería OpenAI.
+    """
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    if not api_key:
+        logger.critical("[OPENROUTER] Falta OPENROUTER_API_KEY en variables de entorno.")
+        raise HTTPException(500, "Missing OPENROUTER_API_KEY")
+
+    logger.info(f"[OPENROUTER] Llamando al modelo remoto '{model_name}'")
+
+    client = OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key
+    )
+
+    try:
+        completion = client.chat.completions.create(
+            model=model_name,
+            messages=[{"role": "user", "content": prompt_text}],
+            temperature=0.7,
+        )
+
+        logger.info("[OPENROUTER] Respuesta recibida correctamente.")
+        return completion.choices[0].message.content
+
+    except Exception as e:
+        logger.error(f"[OPENROUTER] Error al procesar la solicitud: {e}")
+        raise HTTPException(status_code=500, detail=f"OpenRouter error: {e}")
+
+
+# ---------------------------------------
+# MAIN ENDPOINT
+# ---------------------------------------
+
+@app.post("/chat", response_model=QueryResponse)
+async def chat(request: QueryRequest):
+    # Obtener texto a procesar
+    prompt_text = request.prompt or request.query
+    if not prompt_text:
+        raise HTTPException(status_code=400, detail="Debes enviar 'query' o 'prompt'.")
+
+    # Modelo por defecto
+    ollama_model = os.getenv("LLM_MODEL", "orca-mini")
+    open_router_model = os.getenv("OPENROUTER_MODEL", "openai/gpt-5.1")
+
+    # ---------------------------------------
+    # 1) Intentar con Ollama
+    # ---------------------------------------
+    logger.info("[CHAT] Intentando primero con Ollama...")
+    ollama_response = call_ollama(prompt_text, ollama_model)
+
+    if ollama_response:
+        logger.info("[CHAT] Respuesta obtenida desde Ollama.")
+        return QueryResponse(response=ollama_response, model=f"Ollama:{ollama_model}")
+
+    # ---------------------------------------
+    # 2) Si Ollama falla, fallback a OpenRouter
+    # ---------------------------------------
+    logger.warning("[CHAT] Ollama no disponible. Usando OpenRouter como fallback.")
+    remote_response = call_openrouter(prompt_text, open_router_model)
+
+    return QueryResponse(response=remote_response, model=f"OpenRouter:{open_router_model}")
 
 @app.get("/health")
-async def health_check():
-    """
-    Endpoint de verificación de salud.
-    """
-    return {"status": "ok"}
+async def health():
+    return {
+        "status": "healthy"
+    }

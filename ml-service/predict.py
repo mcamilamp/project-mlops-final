@@ -22,18 +22,14 @@ class PredictionResponse(BaseModel):
 # Variable global para el modelo
 model = None
 
-@app.on_event("startup")
-async def load_model():
-    """Intentar cargar el modelo al iniciar el servicio"""
-    global model
-    try:
-        logger.info("🔄 Intentando cargar modelo wine_classification...")
-        mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://mlflow:5000"))
-        model = mlflow.sklearn.load_model("models:/wine_classification/1")
-        logger.info("✅ Modelo wine_classification versión 1 cargado exitosamente")
-    except Exception as e:
-        logger.error(f"❌ Error al cargar modelo: {e}")
-        logger.info("📝 Entrena y registra un modelo primero con: docker compose exec ml-service python train.py")
+try:
+    logger.info("🔄 Intentando cargar modelo wine_classification...")
+    mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
+    model = mlflow.sklearn.load_model("models:/wine_classification/Production")
+    logger.info("✅ Modelo wine_classification versión 1 cargado exitosamente")
+except Exception as e:
+    logger.error(f"❌ Error al cargar modelo: {e}")
+    logger.info("📝 Entrena y registra un modelo primero con: docker compose exec ml-service python train.py")
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict(request: PredictionRequest):

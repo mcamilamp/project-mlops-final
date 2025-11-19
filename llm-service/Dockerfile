@@ -14,7 +14,8 @@ FROM base AS dependencies
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install openai
+RUN pip install python-multipart
 FROM base AS runtime
 
 # Copiar dependencias instaladas

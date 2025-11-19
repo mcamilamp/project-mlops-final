@@ -7,6 +7,19 @@ LLM_URL = "http://llm-service:8000/chat"
 ML_URL = "http://ml-service:8000/predict"  
 CNN_URL = "http://cnn-service:8000/classify"
 
+def clean_output(text: str) -> str:
+    if not text:
+        return ""
+    return (
+        text.replace("[OUT]", "")
+            .replace("[/OUT]", "")
+            .replace("<s>", "")
+            .replace("</s>", "")
+            .replace("[B_INST]", "")
+            .replace("[/B_INST]", "")
+            .strip()
+    )
+
 def chat_with_llm(message, history):
     """
     Interfaz de chat con el LLM.
@@ -17,8 +30,11 @@ def chat_with_llm(message, history):
             json={"prompt": message},
             timeout=120
         )
-        return response.json()["response"]
+        logged_response = response.json()
+        print(logged_response)
+        return clean_output(logged_response['response'])
     except Exception as e:
+        print(str(e))
         return f"Error: {str(e)}"
 
 def classify_wine(alcohol, malic_acid, ash, alcalinity, magnesium, 
@@ -41,6 +57,8 @@ def classify_wine(alcohol, malic_acid, ash, alcalinity, magnesium,
             timeout=10
         )
         result = response.json()
+
+        print(result)
         
         wine_classes = {
             0: "Clase 0 - Cultivar 1",
@@ -82,9 +100,6 @@ def classify_image(image):
 **Predicción:** {result['prediction']}
 **Confianza:** {result['confidence']:.2%}
 **Clases soportadas:** {', '.join(result['supported_classes'])}
-**Filtros aplicados:** {', '.join(result['filters_applied'])}
-
-{result['warning']}
         """
     except Exception as e:
         return f"❌ Error: {str(e)}"

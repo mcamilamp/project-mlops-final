@@ -15,7 +15,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
+RUN pip install scikit-learn==1.7.2
+RUN pip uninstall -y numpy && pip uninstall -y numpy
+RUN pip install numpy==2.2.4
 FROM python:3.10-slim AS runtime
 
 # NO crear usuario - ejecutar como root para acceso al volumen
