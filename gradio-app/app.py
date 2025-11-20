@@ -40,10 +40,6 @@ def chat_with_llm(message, history):
 def classify_wine(alcohol, malic_acid, ash, alcalinity, magnesium, 
                   phenols, flavanoids, nonflavanoid, proanthocyanins,
                   color_intensity, hue, od280_od315, proline):
-    """
-    Clasificación de vinos con modelo ML.
-    Wine dataset tiene 13 características.
-    """
     try:
         features = [
             alcohol, malic_acid, ash, alcalinity, magnesium,
@@ -80,14 +76,13 @@ def classify_wine(alcohol, malic_acid, ash, alcalinity, magnesium,
 **Características analizadas:** 13
         """
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"Error: {str(e)}"
 
 def classify_image(image):
     """
     Clasificación de imágenes con CNN.
     """
     try:
-        # Convertir imagen a bytes
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
@@ -102,21 +97,21 @@ def classify_image(image):
 **Clases soportadas:** {', '.join(result['supported_classes'])}
         """
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"Error: {str(e)}"
 
 # Crear interfaz con tabs
 with gr.Blocks(title="MLOps Wine Classification", theme=gr.themes.Soft()) as demo:
-    gr.Markdown("# 🍷 Sistema MLOps - Wine Classification")
+    gr.Markdown("# Sistema MLOps - Wine Classification")
     gr.Markdown("Integración de LLM, ML Clásico (Wine Dataset) y CNN con buenas prácticas MLOps")
     
-    with gr.Tab("💬 Chat LLM"):
+    with gr.Tab("Chat LLM"):
         chatbot = gr.ChatInterface(
             fn=chat_with_llm,
             title="Asistente de Lenguaje",
             description="Conversa con el modelo de lenguaje Ollama"
         )
     
-    with gr.Tab("🍷 Clasificación de Vinos"):
+    with gr.Tab("Clasificación de Vinos"):
         gr.Markdown("""
         ### Modelo Random Forest - Wine Dataset
         Clasifica vinos en 3 cultivares basándose en 13 características químicas.
@@ -163,7 +158,7 @@ with gr.Blocks(title="MLOps Wine Classification", theme=gr.themes.Soft()) as dem
             label="Haz click en un ejemplo para cargarlo"
         )
         
-        ml_button = gr.Button("🔍 Clasificar Vino", variant="primary")
+        ml_button = gr.Button("Clasificar Vino", variant="primary")
         ml_output = gr.Markdown()
         
         ml_button.click(
@@ -174,12 +169,12 @@ with gr.Blocks(title="MLOps Wine Classification", theme=gr.themes.Soft()) as dem
             outputs=ml_output
         )
     
-    with gr.Tab("🖼️ Clasificación de Imágenes"):
+    with gr.Tab("Clasificación de Imágenes"):
         gr.Markdown("### Red Neuronal Convolucional")
         gr.Markdown("Sube una imagen para clasificarla usando el modelo CNN")
         
         image_input = gr.Image(type="pil", label="Sube una imagen")
-        cnn_button = gr.Button("🔍 Clasificar Imagen", variant="primary")
+        cnn_button = gr.Button("Clasificar Imagen", variant="primary")
         cnn_output = gr.Markdown()
         
         cnn_button.click(classify_image, inputs=image_input, outputs=cnn_output)

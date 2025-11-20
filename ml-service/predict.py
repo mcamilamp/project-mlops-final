@@ -1,3 +1,16 @@
+""""
+ML Service API - Wine Classification Prediction Service
+
+Implementa una API REST usando FastAPI para servir un modelo de clasificación de vinos
+entrenado con MLflow. 
+Espera 13 características del Wine dataset y devuelve la clase predicha y las probabilidades asociadas. 
+También esta la opción de unas características predeterminadas para pruebas rápidas.  
+
+Autor: María Camila Mercado Payares 
+Proyecto: MLOps Final
+
+"""
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import mlflow.sklearn
@@ -6,7 +19,6 @@ from typing import List
 import os
 import logging
 
-# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -19,17 +31,16 @@ class PredictionResponse(BaseModel):
     prediction: int
     probability: List[float]
 
-# Variable global para el modelo
 model = None
 
 try:
-    logger.info("🔄 Intentando cargar modelo wine_classification...")
+    logger.info("Intentando cargar modelo wine_classification...")
     mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000"))
     model = mlflow.sklearn.load_model("models:/wine_classification/Production")
-    logger.info("✅ Modelo wine_classification versión 1 cargado exitosamente")
+    logger.info("Modelo wine_classification versión 1 cargado exitosamente")
 except Exception as e:
-    logger.error(f"❌ Error al cargar modelo: {e}")
-    logger.info("📝 Entrena y registra un modelo primero con: docker compose exec ml-service python train.py")
+    logger.error(f"Error al cargar modelo: {e}")
+    logger.info("Entrena y registra un modelo primero con: docker compose exec ml-service python train.py")
 
 @app.post("/predict", response_model=PredictionResponse)
 async def predict(request: PredictionRequest):
@@ -44,7 +55,6 @@ async def predict(request: PredictionRequest):
         )
 
     try:
-        # Validar que se reciban 13 características
         if len(request.features) != 13:
             raise HTTPException(
                 status_code=400,

@@ -21,7 +21,6 @@ def test_health():
     assert data["status"] == "healthy"
 
 def test_classify_image():
-    # Create a dummy image for testing
     image = Image.new('L', (48, 48), color=128)  # Grayscale image
     img_byte_arr = io.BytesIO()
     image.save(img_byte_arr, format='PNG')

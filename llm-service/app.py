@@ -1,3 +1,16 @@
+
+"""
+LLM Service API - Servicio de Consulta a Modelos de Lenguaje
+
+Se implementa una API REST usando FAST API que permite a los usuarios hacer consultas
+a modelos de lenguaje. Primero intenta usar un modelo local a través de Ollama, si Ollama falla
+entonces usa OpenRouter como respaldo.
+
+Autor: María Camila Mercado Payares 
+Proyecto: MLOps Final
+"""
+
+
 import os
 import requests
 import logging
@@ -6,9 +19,6 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from openai import OpenAI
 
-# ---------------------------------------
-# LOGGING CONFIG
-# ---------------------------------------
 logging.basicConfig(
     level=logging.INFO,
     format="[%(levelname)s] %(asctime)s - %(message)s",
@@ -17,10 +27,6 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="LLM Service API")
 
-
-# ---------------------------------------
-# MODELS
-# ---------------------------------------
 
 class QueryRequest(BaseModel):
     query: Optional[str] = None
@@ -33,14 +39,8 @@ class QueryResponse(BaseModel):
     model: str
 
 
-# ---------------------------------------
-# HELPERS
-# ---------------------------------------
-
 def call_ollama(prompt_text: str, model_name: str) -> Optional[str]:
-    """
-    Llama a Ollama localmente. Si falla, devuelve None.
-    """
+    
     ollama_url = os.getenv("OLLAMA_URL", "http://localhost:11434")
 
     logger.info(f"[OLLAMA] Intentando consulta al modelo '{model_name}' en {ollama_url}")
@@ -74,9 +74,6 @@ def call_ollama(prompt_text: str, model_name: str) -> Optional[str]:
 
 
 def call_openrouter(prompt_text: str, model_name: str) -> str:
-    """
-    Llama a OpenRouter usando la librería OpenAI.
-    """
     api_key = os.getenv("OPENROUTER_API_KEY")
     if not api_key:
         logger.critical("[OPENROUTER] Falta OPENROUTER_API_KEY en variables de entorno.")
@@ -104,24 +101,17 @@ def call_openrouter(prompt_text: str, model_name: str) -> str:
         raise HTTPException(status_code=500, detail=f"OpenRouter error: {e}")
 
 
-# ---------------------------------------
-# MAIN ENDPOINT
-# ---------------------------------------
 
 @app.post("/chat", response_model=QueryResponse)
 async def chat(request: QueryRequest):
-    # Obtener texto a procesar
     prompt_text = request.prompt or request.query
     if not prompt_text:
         raise HTTPException(status_code=400, detail="Debes enviar 'query' o 'prompt'.")
 
-    # Modelo por defecto
+
     ollama_model = os.getenv("LLM_MODEL", "orca-mini")
     open_router_model = os.getenv("OPENROUTER_MODEL", "openai/gpt-5.1")
 
-    # ---------------------------------------
-    # 1) Intentar con Ollama
-    # ---------------------------------------
     logger.info("[CHAT] Intentando primero con Ollama...")
     ollama_response = call_ollama(prompt_text, ollama_model)
 
@@ -129,9 +119,6 @@ async def chat(request: QueryRequest):
         logger.info("[CHAT] Respuesta obtenida desde Ollama.")
         return QueryResponse(response=ollama_response, model=f"Ollama:{ollama_model}")
 
-    # ---------------------------------------
-    # 2) Si Ollama falla, fallback a OpenRouter
-    # ---------------------------------------
     logger.warning("[CHAT] Ollama no disponible. Usando OpenRouter como fallback.")
     remote_response = call_openrouter(prompt_text, open_router_model)
 

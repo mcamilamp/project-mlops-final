@@ -15,7 +15,6 @@ def train_model():
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
     mlflow.set_tracking_uri(tracking_uri)
     
-    # IMPORTANTE: Configurar para usar artifacts vía HTTP
     os.environ["MLFLOW_ARTIFACTS_DESTINATION"] = f"{tracking_uri}/api/2.0/mlflow-artifacts/artifacts"
     
     mlflow.set_experiment("wine_classification")
