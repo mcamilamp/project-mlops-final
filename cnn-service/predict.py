@@ -1,3 +1,17 @@
+"""
+Servidor del modelo cnn clasificador de emociones segun el gesto de la cara.
+las emociones soportadas son 'angry', 'disgusted', 'fearful', 'neutral', 'surprised'
+el modelo está hecho con tensorflow/keras. en el archivo pipeline/pipeline.ipynb
+
+LIMITACIÖN. El entrenamiento del CNN no se realiza automáticamente.
+al ser un archivo notebook dificulta un poco la automatización del entrenamiento.
+Además toma cierto tiempo (>10min)
+
+Autor: Miguel Amézquita
+Fecha: 21/11/25
+"""
+
+
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import JSONResponse
 import numpy as np
@@ -22,16 +36,13 @@ async def get_supported_classes():
 @app.post("/classify")
 async def classify_image(file: UploadFile = File(...)):
     MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", "http://localhost:5000")
-    # Connect to mlflow server
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-    # Load model from mlflow
     model = mlflow.tensorflow.load_model("models:/emotion-classifier/Production")
 
     """
     Clasifica una imagen
     """
     try:
-        # Leer imagen y configurar para predicción
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert('L')
         image = image.resize((48, 48))

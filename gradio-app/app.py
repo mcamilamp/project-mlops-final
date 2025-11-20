@@ -1,11 +1,20 @@
+"""
+Interfaz en gradio de los tres módulos LLM, ML y CNN
+Autor: Maria Camila Mercado Payares
+Fecha: 19/11/25
+"""
+
+
 import gradio as gr
 import requests
 from PIL import Image
 import io
 
+
 LLM_URL = "http://llm-service:8000/chat"
 ML_URL = "http://ml-service:8000/predict"  
 CNN_URL = "http://cnn-service:8000/classify"
+
 
 def clean_output(text: str) -> str:
     if not text:
@@ -19,6 +28,7 @@ def clean_output(text: str) -> str:
             .replace("[/B_INST]", "")
             .strip()
     )
+
 
 def chat_with_llm(message, history):
     """
@@ -36,6 +46,7 @@ def chat_with_llm(message, history):
     except Exception as e:
         print(str(e))
         return f"Error: {str(e)}"
+
 
 def classify_wine(alcohol, malic_acid, ash, alcalinity, magnesium, 
                   phenols, flavanoids, nonflavanoid, proanthocyanins,
@@ -80,14 +91,14 @@ def classify_wine(alcohol, malic_acid, ash, alcalinity, magnesium,
 **Características analizadas:** 13
         """
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"Error: {str(e)}"
 
 def classify_image(image):
     """
     Clasificación de imágenes con CNN.
     """
     try:
-        # Convertir imagen a bytes
+       
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format='PNG')
         img_byte_arr.seek(0)
@@ -102,9 +113,9 @@ def classify_image(image):
 **Clases soportadas:** {', '.join(result['supported_classes'])}
         """
     except Exception as e:
-        return f"❌ Error: {str(e)}"
+        return f"Error: {str(e)}"
 
-# Crear interfaz con tabs
+
 with gr.Blocks(title="MLOps Wine Classification", theme=gr.themes.Soft()) as demo:
     gr.Markdown("#  Sistema MLOps - Wine Classification")
     gr.Markdown("Integración de LLM, ML Clásico (Wine Dataset) y CNN con buenas prácticas MLOps")
@@ -118,7 +129,7 @@ with gr.Blocks(title="MLOps Wine Classification", theme=gr.themes.Soft()) as dem
     
     with gr.Tab(" Clasificación de Vinos"):
         gr.Markdown("""
-        ### Modelo Random Forest - Wine Dataset
+       
         Clasifica vinos en 3 cultivares basándose en 13 características químicas.
         
         **Características del dataset:**
@@ -153,9 +164,9 @@ with gr.Blocks(title="MLOps Wine Classification", theme=gr.themes.Soft()) as dem
         gr.Markdown("#### Ejemplos pre-cargados")
         gr.Examples(
             examples=[
-                [13.2, 2.77, 2.51, 18.5, 96.0, 1.9, 0.58, 0.28, 0.42, 1.95, 1.05, 1.05, 920.0],  # Clase 0
-                [12.37, 1.13, 2.16, 19.0, 87.0, 3.5, 3.1, 0.19, 1.87, 4.45, 1.22, 2.87, 420.0],  # Clase 1
-                [13.4, 3.91, 2.48, 23.0, 102.0, 1.8, 0.75, 0.43, 1.41, 7.3, 0.7, 1.56, 750.0]   # Clase 2
+                [13.2, 2.77, 2.51, 18.5, 96.0, 1.9, 0.58, 0.28, 0.42, 1.95, 1.05, 1.05, 920.0], 
+                [12.37, 1.13, 2.16, 19.0, 87.0, 3.5, 3.1, 0.19, 1.87, 4.45, 1.22, 2.87, 420.0], 
+                [13.4, 3.91, 2.48, 23.0, 102.0, 1.8, 0.75, 0.43, 1.41, 7.3, 0.7, 1.56, 750.0]  
             ],
             inputs=[alcohol, malic_acid, ash, alcalinity, magnesium, phenols, 
                    flavanoids, nonflavanoid, proanthocyanins, color_intensity, 
